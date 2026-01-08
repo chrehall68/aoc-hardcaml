@@ -6,7 +6,7 @@ module Day1 = Aoc_hardcaml.Day1
 module Harness = Cyclesim_harness.Make (Day1.I) (Day1.O)
 
 let ( <--. ) = Bits.( <--. )
-let sample_input_values = [ (16, "L"); (26, "R"); (60, "L")]
+let sample_input_values = [ 16, "L"; 26, "R"; 60, "L"; 30, "L"; 100, "R"; 30, "R" ]
 
 let simple_testbench (sim : Harness.Sim.t) =
   let inputs = Cyclesim.inputs sim in
@@ -62,7 +62,7 @@ let waves_config = Waves_config.no_waves
 (* ;; *)
 let%expect_test "Simple test, optionally saving waveforms to disk" =
   Harness.run_advanced ~waves_config ~create:Day1.hierarchical simple_testbench;
-  [%expect {| (Result (range 146)) |}]
+  [%expect {| (Result (zero_count 1)) |}]
 ;;
 
 let%expect_test "Simple test with printing waveforms directly" =
@@ -72,6 +72,9 @@ let%expect_test "Simple test with printing waveforms directly" =
      be shown. *)
   let display_rules =
     [ Display_rule.port_name_matches
+        ~wave_format:(Bit_or Int)
+        (Re.Glob.glob "cur_dial" |> Re.compile)
+    ; Display_rule.port_name_matches
         ~wave_format:(Bit_or Unsigned_int)
         (Re.Glob.glob "day1*" |> Re.compile)
     ]
@@ -90,6 +93,5 @@ let%expect_test "Simple test with printing waveforms directly" =
         (* [wave_width] configures how many chars wide each clock cycle is *)
         waves)
     simple_testbench;
-  [%expect
-    {||}]
+  [%expect {||}]
 ;;
