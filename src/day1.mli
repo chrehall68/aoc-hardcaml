@@ -20,7 +20,7 @@ module I : sig
     ; finish : 'a
     ; dial_amt : 'a
     ; is_left : 'a
-    ; data_in_valid: 'a
+    ; data_in_valid : 'a
     }
   [@@deriving hardcaml]
 end

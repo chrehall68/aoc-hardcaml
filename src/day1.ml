@@ -89,7 +89,10 @@ let create
                                    (module Signal)
                                    negated_subtraction_result.value
                                    100)
-                        ; signed_mod_result <-- sized_int 100 -: mod_result.value
+                        ; if_
+                            (mod_result.value ==: sized_int 0)
+                            [ signed_mod_result <-- mod_result.value ]
+                            [ signed_mod_result <-- sized_int 100 -: mod_result.value ]
                         ]
                         [ (* then we want have no overflow *)
                           mod_result <-- subtraction_result.value

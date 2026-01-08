@@ -1,6 +1,6 @@
 (executables
  (modes byte exe)
- (names generate)
+ (names generate run_day1)
  (libraries
   core.command
   core_unix.command_unix
@@ -8,6 +8,7 @@
   core_unix
   hardcaml
   aoc_hardcaml
+  hardcaml_test_harness
   jane_rope)
  (preprocess
   (pps ppx_jane))
