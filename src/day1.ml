@@ -122,10 +122,7 @@ let create
             ; when_ finish [ sm.set_next Done ]
             ] )
         ; ( Done
-          , [ if_
-                (cur_dial.value ==: sized_int 0)
-                [ zero_count <-- zero_counter.value +: sized_int 1 ]
-                [ zero_count <-- zero_counter.value ]
+          , [ zero_count <-- zero_counter.value
             ; zero_count_valid <-- vdd
             ; when_ finish [ sm.set_next Accepting_inputs ]
             ] )
