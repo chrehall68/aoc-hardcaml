@@ -59,8 +59,8 @@ let create scope ({ clock; clear; start; finish; dial_amt; is_left; data_in_vali
           , [ when_
                 start
                 [ 
-                  cur_dial <-- of_unsigned_int 50
-                ; zero_counter <-- of_unsigned_int 0
+                  cur_dial <-- of_unsigned_int ~width:num_bits 50
+                ; zero_counter <-- of_unsigned_int ~width:num_bits 0
                 ; sm.set_next Accepting_inputs
                 ]
             ] )
@@ -68,16 +68,18 @@ let create scope ({ clock; clear; start; finish; dial_amt; is_left; data_in_vali
           , [ when_
                 data_in_valid
                 [ 
-                  if_ is_left [ cur_dial <-- (cur_dial - dial_amt) % (of_unsigned_int 100) ]
-                    [cur_dial <-- (cur_dial + dial_amt) % (of_unsigned_int 100)]
+                  if_ is_left [ cur_dial <-- cur_dial.value -: dial_amt ]
+                    [cur_dial <-- cur_dial.value +: dial_amt]
                   ;
-                  when_ cur_dial == of_unsigned_int 0 [ zero_counter <-- zero_counter + 1 ]
+                  when_ (cur_dial.value ==: of_unsigned_int ~width:num_bits 0) [ zero_counter <-- zero_counter.value +: of_unsigned_int ~width:num_bits 1; ]
                 ]
             ; when_ finish [ sm.set_next Done ]
             ] )
         ; ( Done
-          , [ zero_count <-- zero_counter 
-            ; zero_count_valid <-- vdd
+          , [ if_ (cur_dial.value ==: of_unsigned_int ~width: num_bits 0 )[
+            zero_count <-- zero_counter.value  +: of_unsigned_int ~width: num_bits 1
+          ] [ zero_count <-- zero_counter.value];
+            zero_count_valid <-- vdd
             ; when_ finish [ sm.set_next Accepting_inputs ]
             ] )
         ]

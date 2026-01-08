@@ -1,11 +1,11 @@
 open! Core
 open! Hardcaml
-open! Hardcaml_demo_project
+open! Aoc_hardcaml 
 
 let generate_range_finder_rtl () =
-  let module C = Circuit.With_interface (Range_finder.I) (Range_finder.O) in
+  let module C = Circuit.With_interface (Day1.I) (Day1.O) in
   let scope = Scope.create ~auto_label_hierarchical_ports:true () in
-  let circuit = C.create_exn ~name:"range_finder_top" (Range_finder.hierarchical scope) in
+  let circuit = C.create_exn ~name:"day1_top" (Day1.hierarchical scope) in
   let rtl_circuits =
     Rtl.create ~database:(Scope.circuit_database scope) Verilog [ circuit ]
   in
