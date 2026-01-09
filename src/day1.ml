@@ -26,8 +26,8 @@ end
 
 module O = struct
   type 'a t =
-    { (* With_valid.t is an Interface type that contains a [valid] and a [value] field. *)
-      zero_count : 'a With_valid.t [@bits num_bits]
+    { ending_zero_count : 'a With_valid.t [@bits num_bits]
+    ; passing_zero_count : 'a With_valid.t [@bits num_bits]
     }
   [@@deriving hardcaml]
 end
@@ -40,99 +40,80 @@ module States = struct
   [@@deriving sexp_of, compare ~localize, enumerate]
 end
 
+module Divider = Hardcaml_circuits.Divide_by_constant.Make (Signal)
+
 let create
   scope
   ({ clock; clear; start; finish; dial_amt; is_left; data_in_valid } : _ I.t)
   : _ O.t
   =
+  (*setup*)
   let sized_int x = of_unsigned_int ~width:num_bits x in
+  let change_repr x = mux2 (x ==: sized_int 0) (sized_int 0) (sized_int 100 -: x) in
+  let choose_repr x do_change = mux2 do_change (change_repr x) x in
   let spec = Reg_spec.create ~clock ~clear () in
   let open Always in
   let sm = State_machine.create (module States) spec in
   let%hw_var cur_dial = Variable.reg spec ~width:num_bits in
-  let%hw_var zero_counter = Variable.reg spec ~width:num_bits in
-  (* We don't need to name the range here since it's immediately used in the module
-     output, which is automatically named when instantiating with [hierarchical] *)
-  let addition_result = Variable.wire ~default:(zero num_bits) () in
-  let subtraction_result = Variable.wire ~default:(zero num_bits) () in
-  let negated_subtraction_result = Variable.wire ~default:(zero num_bits) () in
-  let mod_result = Variable.wire ~default:(zero num_bits) () in
-  let signed_mod_result = Variable.wire ~default:(zero num_bits) () in
-  let zero_count = Variable.wire ~default:(zero num_bits) () in
-  let zero_count_valid = Variable.wire ~default:gnd () in
+  (* how many times cur_dial was exactly 0*)
+  let%hw_var ending_zeros = Variable.reg spec ~width:num_bits in
+  (* how many times cur_dial passed by 0 *)
+  let%hw_var passing_zeros = Variable.reg spec ~width:num_bits in
+  (* intermediates *)
+  let repr = Variable.wire ~default:(zero num_bits) () in
+  let sum = Variable.wire ~default:(zero num_bits) () in
+  let quot = Variable.wire ~default:(zero num_bits) () in
+  let rem = Variable.wire ~default:(zero num_bits) () in
+  let next_pos = Variable.wire ~default:(zero num_bits) () in
+  (* output wires *)
+  let ending_zero_count = Variable.wire ~default:(zero num_bits) () in
+  let passing_zero_count = Variable.wire ~default:(zero num_bits) () in
+  let valid = Variable.wire ~default:gnd () in
   compile
     [ sm.switch
         [ ( Idle
           , [ when_
                 start
                 [ cur_dial <-- sized_int 50
-                ; zero_counter <-- sized_int 0
+                ; ending_zeros <-- sized_int 0
                 ; sm.set_next Accepting_inputs
                 ]
             ] )
         ; ( Accepting_inputs
           , [ when_
                 data_in_valid
-                [ addition_result <-- cur_dial.value +: dial_amt
-                ; subtraction_result <-- cur_dial.value -: dial_amt
-                  (* convert from negative to positive means flip all bits and add 1 *)
-                ; negated_subtraction_result <-- ~:(subtraction_result.value) +:. 1
-                ; if_
-                    is_left
-                    [ if_
-                        (subtraction_result.value <+ sized_int 0)
-                        [ (* then we should mod the negated subtraction result and then re-negate the result*)
-                          mod_result
-                          <-- uresize
-                                ~width:num_bits
-                                (Hardcaml_circuits.Modulo.unsigned_by_constant
-                                   (module Signal)
-                                   negated_subtraction_result.value
-                                   100)
-                        ; if_
-                            (mod_result.value ==: sized_int 0)
-                            [ signed_mod_result <-- mod_result.value ]
-                            [ signed_mod_result <-- sized_int 100 -: mod_result.value ]
-                        ]
-                        [ (* then we want have no overflow *)
-                          mod_result <-- subtraction_result.value
-                        ; signed_mod_result <-- mod_result.value
-                        ]
-                    ]
-                    [ (* need to move the dial right*)
-                      if_
-                        (addition_result.value >=+ sized_int 100)
-                        [ (* then we need to do modulo*)
-                          mod_result
-                          <-- uresize
-                                ~width:num_bits
-                                (Hardcaml_circuits.Modulo.unsigned_by_constant
-                                   (module Signal)
-                                   addition_result.value
-                                   100)
-                        ; signed_mod_result <-- mod_result.value
-                        ]
-                        [ (* then we want have no overflow *)
-                          mod_result <-- addition_result.value
-                        ; signed_mod_result <-- mod_result.value
-                        ]
-                    ]
-                ; cur_dial <-- signed_mod_result.value
+                [ (* convert to the right representation (+ or -) depending on direction *)
+                  repr <-- choose_repr cur_dial.value is_left
+                  (* calculate how many times we pass zero and what we end up as *)
+                ; sum <-- repr.value +: dial_amt
+                ; quot
+                  <-- uresize
+                        ~width:num_bits
+                        (Divider.divide ~divisor:(Bigint.of_int 100) sum.value)
+                ; rem
+                  <-- sum.value -: uresize ~width:num_bits (quot.value *+ sized_int 100)
+                ; next_pos <-- choose_repr rem.value is_left
+                  (* go to next position and update counts *)
+                ; cur_dial <-- next_pos.value
+                ; passing_zeros <-- passing_zeros.value +: quot.value
                 ; when_
-                    (signed_mod_result.value ==: sized_int 0)
-                    [ zero_counter <-- zero_counter.value +: sized_int 1 ]
+                    (next_pos.value ==: sized_int 0)
+                    [ ending_zeros <-- ending_zeros.value +: sized_int 1 ]
                 ]
             ; when_ finish [ sm.set_next Done ]
             ] )
         ; ( Done
-          , [ zero_count <-- zero_counter.value
-            ; zero_count_valid <-- vdd
+          , [ ending_zero_count <-- ending_zeros.value
+            ; passing_zero_count <-- passing_zeros.value
+            ; valid <-- vdd
             ; when_ finish [ sm.set_next Accepting_inputs ]
             ] )
         ]
     ];
   (* [.value] is used to get the underlying Signal.t from a Variable.t in the Always DSL. *)
-  { zero_count = { value = zero_count.value; valid = zero_count_valid.value } }
+  { ending_zero_count = { value = ending_zero_count.value; valid = valid.value }
+  ; passing_zero_count = { value = passing_zero_count.value; valid = valid.value }
+  }
 ;;
 
 (* The [hierarchical] wrapper is used to maintain module hierarchy in the generated

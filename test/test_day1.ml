@@ -36,11 +36,15 @@ let simple_testbench (input_values : (int * string) list) (sim : Harness.Sim.t) 
   inputs.finish := Bits.gnd;
   cycle ();
   (* Wait for result to become valid *)
-  while not (Bits.to_bool !(outputs.zero_count.valid)) do
+  while
+    (not (Bits.to_bool !(outputs.ending_zero_count.valid)))
+    || not (Bits.to_bool !(outputs.passing_zero_count.valid))
+  do
     cycle ()
   done;
-  let zero_count = Bits.to_unsigned_int !(outputs.zero_count.value) in
-  print_s [%message "Result" (zero_count : int)];
+  let ending_zero_count = Bits.to_unsigned_int !(outputs.ending_zero_count.value) in
+  let passing_zero_count = Bits.to_unsigned_int !(outputs.passing_zero_count.value) in
+  print_s [%message "Result" (ending_zero_count : int) (passing_zero_count : int)];
   (* Show in the waveform that [valid] stays high. *)
   cycle ~n:2 ()
 ;;
@@ -64,7 +68,7 @@ let test1 = [ 16, "L"; 26, "R"; 60, "L"; 30, "L"; 100, "R"; 30, "R" ]
 
 let%expect_test "test1" =
   Harness.run_advanced ~waves_config ~create:Day1.hierarchical (simple_testbench test1);
-  [%expect {| (Result (zero_count 2)) |}]
+  [%expect {| (Result (ending_zero_count 2) (passing_zero_count 3)) |}]
 ;;
 
 let%expect_test "test1 waveforms" =
@@ -94,11 +98,14 @@ let%expect_test "test1 waveforms" =
     (simple_testbench test1);
   [%expect
     {|
-    (Result (zero_count 2))
+    (Result (ending_zero_count 2) (passing_zero_count 3))
     ┌Signals─────────────────────┐┌Waves───────────────────────────────────────────────────────┐
     │                            ││────────────┬───┬───────┬───────┬───────┬───────────────┬───│
     │day1$cur_dial               ││ 0          │50 │34     │60     │0      │70             │0  │
     │                            ││────────────┴───┴───────┴───────┴───────┴───────────────┴───│
+    │                            ││────────────────────────────────┬───────────────────────┬───│
+    │day1$ending_zeros           ││ 0                              │1                      │2  │
+    │                            ││────────────────────────────────┴───────────────────────┴───│
     │day1$i$clear                ││────┐                                                       │
     │                            ││    └───────────────────────────────────────────────────────│
     │day1$i$clock                ││┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ │
@@ -114,14 +121,19 @@ let%expect_test "test1 waveforms" =
     │                            ││────────────┘       └───────┘               └───────────────│
     │day1$i$start                ││        ┌───┐                                               │
     │                            ││────────┘   └───────────────────────────────────────────────│
-    │day1$o$zero_count$valid     ││                                                            │
+    │day1$o$ending_zero_count$val││                                                            │
     │                            ││────────────────────────────────────────────────────────────│
     │                            ││────────────────────────────────────────────────────────────│
-    │day1$o$zero_count$value     ││ 0                                                          │
+    │day1$o$ending_zero_count$val││ 0                                                          │
     │                            ││────────────────────────────────────────────────────────────│
-    │                            ││────────────────────────────────┬───────────────────────┬───│
-    │day1$zero_counter           ││ 0                              │1                      │2  │
-    │                            ││────────────────────────────────┴───────────────────────┴───│
+    │day1$o$passing_zero_count$va││                                                            │
+    │                            ││────────────────────────────────────────────────────────────│
+    │                            ││────────────────────────────────────────────────────────────│
+    │day1$o$passing_zero_count$va││ 0                                                          │
+    │                            ││────────────────────────────────────────────────────────────│
+    │                            ││────────────────────────────────┬───────────────┬───────┬───│
+    │day1$passing_zeros          ││ 0                              │1              │2      │3  │
+    │                            ││────────────────────────────────┴───────────────┴───────┴───│
     └────────────────────────────┘└────────────────────────────────────────────────────────────┘
     |}]
 ;;
@@ -130,7 +142,7 @@ let test2 = [ 23, "R"; 27, "R"; 50, "L"; 50, "L"; 100, "R"; 70, "R"; 30, "R" ]
 
 let%expect_test "test2" =
   Harness.run_advanced ~waves_config ~create:Day1.hierarchical (simple_testbench test2);
-  [%expect {| (Result (zero_count 4)) |}]
+  [%expect {| (Result (ending_zero_count 4) (passing_zero_count 4)) |}]
 ;;
 
 (* larger numbers... *)
@@ -140,7 +152,7 @@ let test3 =
 
 let%expect_test "test3" =
   Harness.run_advanced ~waves_config ~create:Day1.hierarchical (simple_testbench test3);
-  [%expect {| (Result (zero_count 3)) |}]
+  [%expect {| (Result (ending_zero_count 3) (passing_zero_count 1308)) |}]
 ;;
 
 let%expect_test "test3 waves" =
@@ -163,11 +175,14 @@ let%expect_test "test3 waves" =
     (simple_testbench test3);
   [%expect
     {|
-    (Result (zero_count 3))
+    (Result (ending_zero_count 3) (passing_zero_count 1308))
     ┌Signals─────────────────────┐┌Waves───────────────────────────────────────────────────────────────────────────────────┐
     │                            ││────────────┬───┬───────┬───────┬───────┬───────┬───────┬───────┬───────────────────    │
     │day1$cur_dial               ││ 0          │50 │0      │70     │0      │96     │2      │12     │0                      │
     │                            ││────────────┴───┴───────┴───────┴───────┴───────┴───────┴───────┴───────────────────    │
+    │                            ││────────────────┬───────────────┬───────────────────────────────┬───────────────────    │
+    │day1$ending_zeros           ││ 0              │1              │2                              │3                      │
+    │                            ││────────────────┴───────────────┴───────────────────────────────┴───────────────────    │
     │day1$i$clear                ││────┐                                                                                   │
     │                            ││    └───────────────────────────────────────────────────────────────────────────────    │
     │day1$i$clock                ││┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ │
@@ -183,14 +198,19 @@ let%expect_test "test3 waves" =
     │                            ││────────────────────┘       └───────┘               └───────┘                           │
     │day1$i$start                ││        ┌───┐                                                                           │
     │                            ││────────┘   └───────────────────────────────────────────────────────────────────────    │
-    │day1$o$zero_count$valid     ││                                                                        ┌───────────    │
+    │day1$o$ending_zero_count$val││                                                                        ┌───────────    │
     │                            ││────────────────────────────────────────────────────────────────────────┘               │
     │                            ││────────────────────────────────────────────────────────────────────────┬───────────    │
-    │day1$o$zero_count$value     ││ 0                                                                      │3              │
+    │day1$o$ending_zero_count$val││ 0                                                                      │3              │
     │                            ││────────────────────────────────────────────────────────────────────────┴───────────    │
-    │                            ││────────────────┬───────────────┬───────────────────────────────┬───────────────────    │
-    │day1$zero_counter           ││ 0              │1              │2                              │3                      │
-    │                            ││────────────────┴───────────────┴───────────────────────────────┴───────────────────    │
+    │day1$o$passing_zero_count$va││                                                                        ┌───────────    │
+    │                            ││────────────────────────────────────────────────────────────────────────┘               │
+    │                            ││────────────────────────────────────────────────────────────────────────┬───────────    │
+    │day1$o$passing_zero_count$va││ 0                                                                      │1308           │
+    │                            ││────────────────────────────────────────────────────────────────────────┴───────────    │
+    │                            ││────────────────┬───────┬───────┬───────┬───────┬───────┬───────┬───────────────────    │
+    │day1$passing_zeros          ││ 0              │11     │18     │1253   │1275   │1287   │1297   │1308                   │
+    │                            ││────────────────┴───────┴───────┴───────┴───────┴───────┴───────┴───────────────────    │
     └────────────────────────────┘└────────────────────────────────────────────────────────────────────────────────────────┘
     |}]
 ;;

@@ -36,11 +36,15 @@ let simple_testbench (input_values : (int * string) list) (sim : Harness.Sim.t) 
   inputs.finish := Bits.gnd;
   cycle ();
   (* Wait for result to become valid *)
-  while not (Bits.to_bool !(outputs.zero_count.valid)) do
+  while
+    (not (Bits.to_bool !(outputs.ending_zero_count.valid)))
+    || not (Bits.to_bool !(outputs.passing_zero_count.valid))
+  do
     cycle ()
   done;
-  let zero_count = Bits.to_unsigned_int !(outputs.zero_count.value) in
-  print_s [%message "Result" (zero_count : int)]
+  let ending_zero_count = Bits.to_unsigned_int !(outputs.ending_zero_count.value) in
+  let passing_zero_count = Bits.to_unsigned_int !(outputs.passing_zero_count.value) in
+  print_s [%message "Result" (ending_zero_count : int) (passing_zero_count : int)]
 ;;
 
 let () =
