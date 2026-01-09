@@ -1,8 +1,8 @@
 open! Core
 open! Hardcaml
-open! Aoc_hardcaml 
+open! Aoc_hardcaml
 
-let generate_range_finder_rtl () =
+let generate_day1_rtl () =
   let module C = Circuit.With_interface (Day1.I) (Day1.O) in
   let scope = Scope.create ~auto_label_hierarchical_ports:true () in
   let circuit = C.create_exn ~name:"day1_top" (Day1.hierarchical scope) in
@@ -13,15 +13,12 @@ let generate_range_finder_rtl () =
   print_endline rtl
 ;;
 
-let range_finder_rtl_command =
+let day1_rtl_command =
   Command.basic
     ~summary:""
     [%map_open.Command
       let () = return () in
-      fun () -> generate_range_finder_rtl ()]
+      fun () -> generate_day1_rtl ()]
 ;;
 
-let () =
-  Command_unix.run
-    (Command.group ~summary:"" [ "range-finder", range_finder_rtl_command ])
-;;
+let () = Command_unix.run (Command.group ~summary:"" [ "day1", day1_rtl_command ])
