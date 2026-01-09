@@ -26,8 +26,9 @@ end
 
 module O = struct
   type 'a t =
-    { ending_zero_count : 'a With_valid.t [@bits num_bits]
-    ; passing_zero_count : 'a With_valid.t [@bits num_bits]
+    { ending_zero_count : 'a [@bits num_bits]
+    ; passing_zero_count : 'a [@bits num_bits]
+    ; valid : 'a
     }
   [@@deriving hardcaml]
 end
@@ -111,8 +112,9 @@ let create
         ]
     ];
   (* [.value] is used to get the underlying Signal.t from a Variable.t in the Always DSL. *)
-  { ending_zero_count = { value = ending_zero_count.value; valid = valid.value }
-  ; passing_zero_count = { value = passing_zero_count.value; valid = valid.value }
+  { ending_zero_count = ending_zero_count.value
+  ; passing_zero_count = passing_zero_count.value
+  ; valid = valid.value
   }
 ;;
 

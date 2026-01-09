@@ -8,7 +8,7 @@
   core_unix
   hardcaml
   aoc_hardcaml
-  hardcaml_test_harness
+  testbenches
   jane_rope)
  (preprocess
   (pps ppx_jane))

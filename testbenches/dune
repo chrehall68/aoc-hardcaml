@@ -1,13 +1,11 @@
 (library
- (name aoc_hardcaml_test)
+ (name testbenches)
  (libraries
   core
   hardcaml
   aoc_hardcaml
-  testbenches
   hardcaml_test_harness
   hardcaml_waveterm
   re)
  (preprocess
-  (pps ppx_hardcaml ppx_jane))
- (inline_tests))
+  (pps ppx_hardcaml ppx_jane)))

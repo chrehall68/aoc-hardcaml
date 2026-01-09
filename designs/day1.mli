@@ -27,8 +27,9 @@ end
 
 module O : sig
   type 'a t =
-    { ending_zero_count : 'a With_valid.t
-    ; passing_zero_count : 'a With_valid.t
+    { ending_zero_count : 'a
+    ; passing_zero_count : 'a
+    ; valid : 'a
     }
   [@@deriving hardcaml]
 end
